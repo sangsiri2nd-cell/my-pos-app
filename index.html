@@ -421,6 +421,12 @@ tbody tr:hover{background:var(--paper-dim);}
         4. ถ้าบาร์โค้ดซ้ำกับสินค้าที่มีอยู่แล้ว แถวนั้นจะถูกข้าม (ไม่นำเข้า) เพื่อป้องกันข้อมูลซ้ำ<br>
         5. หน่วยย่อย (เช่น ขายยกโหล) ยังไม่รองรับการนำเข้าไฟล์ — เพิ่มได้ทีหลังผ่านหน้าแก้ไขสินค้า
       </div>
+      <div class="field" style="margin-bottom:10px;">
+        <input type="file" id="importFile" accept=".csv,.tsv,.txt,text/csv,text/plain" style="display:none;">
+        <button class="btn btn-ghost" id="btnPickFile" type="button">📁 เลือกไฟล์ .csv จากเครื่อง</button>
+        <span id="importFileName" class="hint" style="margin-left:8px;"></span>
+        <div class="hint">เลือกไฟล์แล้วข้อมูลจะถูกใส่ในกล่องด้านล่างให้ตรวจดูก่อน แล้วค่อยกด "นำเข้าข้อมูล" (ถ้าเป็นไฟล์ Excel ให้เปิดแล้ว Save As เป็น CSV UTF-8 ก่อน)</div>
+      </div>
       <textarea id="importText" placeholder="บาร์โค้ด,ชื่อสินค้า,ราคา,จำนวนคงคลัง,หมวดหมู่,หน่วย,ต้นทุนต่อหน่วย
 88500100616059,กระดาษช้างม้า,10,,ของไหว้,แผ่น,
 88500100616097,กระถางกระเบื้องสีมุข 3 นิ้ว,60,10,ของไหว้,ชิ้น,40"></textarea>
@@ -1277,7 +1283,7 @@ document.getElementById('btnBulkAdjust').addEventListener('click', async ()=>{
   const newAdjustments = [];
 
   lines.forEach((line, idx)=>{
-    const cells = line.includes('\t') ? line.split('\t') : line.split(',');
+    const cells = splitLine(line);
     const trimmed = cells.map(c=>c.trim());
     if(idx===0 && /บาร์โค้ด|barcode/i.test(trimmed[0])){ return; }
     const [barcode, qtyStr] = trimmed;
@@ -1352,6 +1358,41 @@ function renderAdjHistory(){
 }
 
 /* ===================== IMPORT ===================== */
+/* split one CSV/TSV line; handles "quoted, values" */
+function splitLine(line){
+  if(line.includes('\t')) return line.split('\t');
+  const out=[]; let cur=''; let inQ=false;
+  for(let i=0;i<line.length;i++){
+    const ch=line[i];
+    if(inQ){
+      if(ch==='"'){ if(line[i+1]==='"'){ cur+='"'; i++; } else inQ=false; }
+      else cur+=ch;
+    } else {
+      if(ch==='"') inQ=true;
+      else if(ch===','){ out.push(cur); cur=''; }
+      else cur+=ch;
+    }
+  }
+  out.push(cur);
+  return out;
+}
+document.getElementById('btnPickFile').addEventListener('click', ()=>document.getElementById('importFile').click());
+document.getElementById('importFile').addEventListener('change', async e=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const buf = await file.arrayBuffer();
+  let text = new TextDecoder('utf-8').decode(buf);
+  if(text.includes('\uFFFD')){
+    try{ text = new TextDecoder('windows-874').decode(buf); }catch(err){}
+  }
+  text = text.replace(/^\uFEFF/,'');
+  document.getElementById('importText').value = text;
+  document.getElementById('importFileName').textContent = file.name;
+  document.getElementById('importResult').innerHTML='';
+  showToast('โหลดไฟล์แล้ว ตรวจข้อมูลแล้วกด "นำเข้าข้อมูล"');
+  e.target.value='';
+});
+
 document.getElementById('btnImportClear').addEventListener('click', ()=>{
   document.getElementById('importText').value='';
   document.getElementById('importResult').innerHTML='';
@@ -1367,7 +1408,7 @@ document.getElementById('btnImport').addEventListener('click', async ()=>{
   const logs = [];
 
   lines.forEach((line, idx)=>{
-    const cells = line.includes('\t') ? line.split('\t') : line.split(',');
+    const cells = splitLine(line);
     const trimmed = cells.map(c=>c.trim());
     if(idx===0 && (/บาร์โค้ด|barcode/i.test(trimmed[0]))){ return; }
     const [barcode, name, priceStr, stockStr, category, unit, costStr, code] = trimmed;
