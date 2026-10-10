@@ -6,7 +6,7 @@
 <title>ระบบสินค้า & ขายหน้าร้าน</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js" onerror="var s=document.createElement('script');s.src='https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';document.head.appendChild(s);"></script>
 <style>
 :root{
   --paper:#FAF7F0;
@@ -682,6 +682,11 @@ tbody tr:hover{background:var(--paper-dim);}
     <h2>สแกนบาร์โค้ด</h2>
     <div id="qrReaderRegion" style="width:100%;border-radius:4px;overflow:hidden;background:#000;min-height:60px;"></div>
     <div class="scan-note" id="scanNote">กำลังเปิดกล้อง...</div>
+    <div style="margin-top:10px;">
+      <input type="file" id="scanPhotoInput" accept="image/*" capture="environment" style="display:none;">
+      <button class="btn btn-ghost btn-sm" id="scanPhotoBtn" type="button">📸 ถ่ายรูปบาร์โค้ดแทน (ใช้เมื่อสแกนสดไม่ติด)</button>
+    </div>
+    <div id="qrFileHolder" style="display:none;"></div>
     <div class="field" style="margin-top:16px;">
       <label>หรือพิมพ์/ยิงบาร์โค้ดด้วยเครื่องสแกนที่นี่</label>
       <div style="display:flex;gap:8px;">
@@ -1905,6 +1910,14 @@ document.getElementById('saveReturnBtn').addEventListener('click', async ()=>{
 let html5QrScanner = null;
 let scannerRunning = false;
 
+function scanErrorMessage(e){
+  const name = (e && (e.name||'')) + ' ' + (e && e.message ? e.message : e);
+  if(/NotAllowed|Permission|denied/i.test(name)) return 'ไม่ได้รับอนุญาตให้ใช้กล้อง — กดไอคอนแม่กุญแจ/ตั้งค่าข้างช่อง URL แล้วเปลี่ยน "กล้อง" เป็น อนุญาต จากนั้นปิดหน้าต่างสแกนแล้วเปิดใหม่ (iPhone: การตั้งค่า → Safari → กล้อง → อนุญาต)';
+  if(/NotFound|no camera|Requested device/i.test(name)) return 'ไม่พบกล้องในอุปกรณ์นี้ — ใช้ปุ่ม "ถ่ายรูปบาร์โค้ดแทน" หรือพิมพ์รหัสด้านล่างแทนได้';
+  if(/NotReadable|in use|Could not start/i.test(name)) return 'กล้องถูกใช้งานโดยแอปอื่นอยู่ — ปิดแอปที่ใช้กล้อง (เช่น แอปกล้อง, LINE, Zoom) แล้วลองใหม่';
+  if(/secure|https/i.test(name)) return 'หน้านี้ต้องเปิดผ่าน https:// เท่านั้นจึงจะใช้กล้องได้';
+  return 'เปิดกล้องไม่สำเร็จ (' + name.trim() + ') — ใช้ปุ่ม "ถ่ายรูปบาร์โค้ดแทน" หรือพิมพ์รหัสด้านล่างแทนได้';
+}
 async function openScanner(mode){
   scanMode = mode;
   const overlay = document.getElementById('scanOverlay');
@@ -1914,31 +1927,56 @@ async function openScanner(mode){
 
   const manualInput = document.getElementById('manualScanInput');
   manualInput.value='';
-  setTimeout(()=>manualInput.focus(), 150);
+  // focus only on desktop; on phones the keyboard would cover the camera view
+  if(window.matchMedia && window.matchMedia('(pointer:fine)').matches){ setTimeout(()=>manualInput.focus(), 150); }
 
   if(typeof Html5Qrcode === 'undefined'){
-    note.textContent = 'โหลดตัวอ่านบาร์โค้ดไม่สำเร็จ (ต้องมีอินเทอร์เน็ต) — ใช้ช่องด้านล่างแทนได้เลย';
+    note.textContent = 'โหลดตัวอ่านบาร์โค้ดไม่สำเร็จ (ต้องมีอินเทอร์เน็ต) — รีเฟรชหน้าแล้วลองใหม่ หรือพิมพ์รหัสด้านล่างแทน';
     return;
   }
   if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
-    note.textContent = 'หน้าต่างนี้ไม่ได้รับอนุญาตให้เข้าถึงกล้อง (มักเกิดขึ้นเมื่อเปิดพรีวิวไฟล์ในแชท Claude โดยตรง) — ใช้ช่องด้านล่างแทนได้เลย หรือเปิดไฟล์นี้เป็นเว็บเพจของตัวเอง (เช่นอัปโหลดขึ้น GitHub Pages/Netlify) แล้วลองสแกนอีกครั้ง';
+    note.textContent = 'เบราว์เซอร์นี้ไม่อนุญาตให้ใช้กล้อง (ต้องเปิดผ่าน https:// ใน Safari/Chrome โดยตรง ไม่ใช่ในหน้าต่างพรีวิวของแอปอื่น) — ใช้ปุ่ม "ถ่ายรูปบาร์โค้ดแทน" หรือพิมพ์รหัสด้านล่างแทนได้';
     return;
   }
   try{
-    if(!html5QrScanner){ html5QrScanner = new Html5Qrcode('qrReaderRegion'); }
+    if(html5QrScanner && scannerRunning){ try{ await html5QrScanner.stop(); }catch(_){} scannerRunning=false; }
+    const F = (typeof Html5QrcodeSupportedFormats!=='undefined') ? Html5QrcodeSupportedFormats : null;
+    const cfg = { verbose:false, experimentalFeatures:{ useBarCodeDetectorIfSupported:true } };
+    if(F){ cfg.formatsToSupport = [F.EAN_13,F.EAN_8,F.UPC_A,F.UPC_E,F.CODE_128,F.CODE_39,F.ITF,F.QR_CODE]; }
+    html5QrScanner = new Html5Qrcode('qrReaderRegion', cfg);
     await html5QrScanner.start(
       { facingMode: 'environment' },
-      { fps: 10, qrbox: { width: 250, height: 150 } },
+      { fps: 15, qrbox: (w,h)=>({ width: Math.floor(w*0.85), height: Math.floor(Math.min(h*0.5, w*0.4)) }) },
       (decodedText)=>{ onBarcodeDetected(decodedText); },
       ()=>{ /* per-frame no-match, ignore */ }
     );
     scannerRunning = true;
-    note.textContent = 'เล็งกล้องไปที่บาร์โค้ด... (หรือใช้ช่องพิมพ์ด้านล่างแทนได้ตลอดเวลา)';
+    note.textContent = 'เล็งบาร์โค้ดให้อยู่ในกรอบ ถือห่างประมาณ 10-20 ซม. ให้แสงพอ และอย่าให้สั่น';
   }catch(e){
     scannerRunning = false;
-    note.textContent = 'เข้าถึงกล้องไม่ได้ในหน้าต่างนี้ (มักเกิดขึ้นเมื่อเปิดพรีวิวไฟล์ในแชท Claude โดยตรง เพราะกล้องถูกบล็อกจากความปลอดภัยของหน้าต่างพรีวิว) — ใช้ช่องด้านล่างแทนได้เลย หรือเปิดไฟล์นี้เป็นเว็บเพจของตัวเอง (เช่นอัปโหลดขึ้น GitHub Pages/Netlify แล้วเข้าผ่าน Safari/Chrome โดยตรง) แล้วลองสแกนอีกครั้ง';
+    note.textContent = scanErrorMessage(e);
   }
 }
+document.getElementById('scanPhotoBtn').addEventListener('click', ()=>document.getElementById('scanPhotoInput').click());
+document.getElementById('scanPhotoInput').addEventListener('change', async e=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const note = document.getElementById('scanNote');
+  if(typeof Html5Qrcode==='undefined'){ note.textContent='ตัวอ่านบาร์โค้ดยังไม่โหลด — รีเฟรชหน้าแล้วลองใหม่'; return; }
+  note.textContent='กำลังอ่านบาร์โค้ดจากรูป...';
+  try{
+    if(html5QrScanner && scannerRunning){ try{ await html5QrScanner.stop(); }catch(_){} scannerRunning=false; }
+    const F = (typeof Html5QrcodeSupportedFormats!=='undefined') ? Html5QrcodeSupportedFormats : null;
+    const cfg = { verbose:false };
+    if(F){ cfg.formatsToSupport = [F.EAN_13,F.EAN_8,F.UPC_A,F.UPC_E,F.CODE_128,F.CODE_39,F.ITF,F.QR_CODE]; }
+    const reader = new Html5Qrcode('qrFileHolder', cfg);
+    const text = await reader.scanFile(file, false);
+    onBarcodeDetected(text);
+  }catch(err){
+    note.textContent='อ่านบาร์โค้ดจากรูปไม่ได้ — ลองถ่ายใหม่ให้เห็นแถบบาร์โค้ดชัดและเต็มกรอบ หรือพิมพ์รหัสด้านล่างแทน';
+  }
+  e.target.value='';
+});
 function stopScanner(){
   if(html5QrScanner && scannerRunning){
     html5QrScanner.stop().then(()=>{ html5QrScanner.clear(); scannerRunning=false; }).catch(()=>{ scannerRunning=false; });
