@@ -6,6 +6,7 @@
 <title>ระบบสินค้า & ขายหน้าร้าน</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js" onerror="var s=document.createElement('script');s.src='https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js';document.head.appendChild(s);"></script>
 <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js" onerror="var s=document.createElement('script');s.src='https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';document.head.appendChild(s);"></script>
 <style>
 :root{
@@ -271,6 +272,7 @@ tbody tr:hover{background:var(--paper-dim);}
     <button class="tab-btn" data-tab="pos">ขายสินค้า (POS)</button>
     <button class="tab-btn" data-tab="import">นำเข้าสินค้า</button>
     <button class="tab-btn" data-tab="adjust">ปรับปรุงสต็อก</button>
+    <button class="tab-btn" data-tab="settings">ตั้งค่าร้าน</button>
     <button class="tab-btn" data-tab="history">ประวัติการขาย</button>
   </div>
 
@@ -392,8 +394,19 @@ tbody tr:hover{background:var(--paper-dim);}
             </div>
           </div>
           <div class="field">
-            <label>ที่อยู่ (ไม่บังคับ)</label>
+            <label>ที่อยู่ (ไม่บังคับ — แต่จำเป็นถ้าขอใบกำกับภาษีเต็มรูป)</label>
             <textarea id="custAddress" rows="2" placeholder="ที่อยู่สำหรับออกใบเสร็จ"></textarea>
+          </div>
+          <div class="field">
+            <label>สำนักงานใหญ่/สาขา ของผู้ซื้อ (ถ้าเป็นนิติบุคคล)</label>
+            <input id="custBranch" placeholder="สำนักงานใหญ่ หรือ สาขา 00001">
+          </div>
+          <div class="field" id="custFullWrap" style="display:none;">
+            <div class="check-row">
+              <input type="checkbox" id="custFullInvoice">
+              <label style="margin:0;" for="custFullInvoice">ออกเป็น "ใบกำกับภาษีเต็มรูป"</label>
+            </div>
+            <div class="hint">ต้องกรอกชื่อและที่อยู่ผู้ซื้อ (และเลขผู้เสียภาษีถ้าผู้ซื้อจะนำไปขอเครดิตภาษี)</div>
           </div>
         </div>
 
@@ -494,6 +507,63 @@ tbody tr:hover{background:var(--paper-dim);}
       <div class="empty" id="adjHistoryEmpty" style="display:none;">
         <div class="big">ยังไม่มีประวัติการปรับสต็อก</div>
       </div>
+    </div>
+  </div>
+
+  <!-- ================= SHOP SETTINGS ================= -->
+  <div class="panel" id="panel-settings">
+    <div class="pos-col" style="max-width:640px;">
+      <h3 style="font-size:16px;margin-bottom:6px;">ข้อมูลร้าน (แสดงบนใบเสร็จ / ใบกำกับภาษี)</h3>
+      <div class="hint" style="margin-bottom:14px;">กรอกครั้งเดียว ระบบจะพิมพ์ลงทุกใบเสร็จให้อัตโนมัติ ใบเสร็จที่ออกไปแล้วจะเก็บข้อมูลร้าน ณ วันที่ออกไว้ แม้ภายหลังแก้ไขข้อมูลร้าน</div>
+      <div class="field">
+        <label>ชื่อร้าน / ชื่อผู้ประกอบการ</label>
+        <input id="setName" placeholder="เช่น ร้านสมชายของไหว้ หรือ บริษัท ... จำกัด">
+      </div>
+      <div class="field">
+        <label>ที่อยู่ร้าน</label>
+        <textarea id="setAddress" rows="2" placeholder="เลขที่ ถนน แขวง/ตำบล เขต/อำเภอ จังหวัด รหัสไปรษณีย์"></textarea>
+      </div>
+      <div class="field-row" style="margin-bottom:14px;">
+        <div class="field">
+          <label>เลขประจำตัวผู้เสียภาษี (13 หลัก)</label>
+          <input id="setTaxId" class="mono" maxlength="13" placeholder="0000000000000">
+        </div>
+        <div class="field">
+          <label>เบอร์โทร</label>
+          <input id="setPhone" placeholder="08x-xxx-xxxx">
+        </div>
+      </div>
+      <div class="field-row" style="margin-bottom:14px;">
+        <div class="field">
+          <label>สถานประกอบการ</label>
+          <select id="setBranchType">
+            <option value="head">สำนักงานใหญ่</option>
+            <option value="branch">สาขา</option>
+          </select>
+        </div>
+        <div class="field" id="branchCodeWrap" style="display:none;">
+          <label>รหัสสาขา (5 หลัก)</label>
+          <input id="setBranchCode" class="mono" maxlength="5" placeholder="00001">
+        </div>
+      </div>
+      <div class="field" style="padding-top:6px;border-top:1px solid var(--line);">
+        <div class="check-row">
+          <input type="checkbox" id="setVat">
+          <label style="margin:0;" for="setVat">ร้านจดทะเบียนภาษีมูลค่าเพิ่ม (VAT) แล้ว</label>
+        </div>
+        <div class="hint">ถ้าจดทะเบียน VAT ระบบจะออก "ใบกำกับภาษีอย่างย่อ" (ลูกค้าทั่วไป) หรือ "ใบกำกับภาษีเต็มรูป" (เมื่อลูกค้าขอ) ถ้ายังไม่จด ระบบจะออกเป็น "ใบเสร็จรับเงิน" ธรรมดา และห้ามแสดง VAT</div>
+      </div>
+      <div class="field" id="vatRateWrap" style="display:none;">
+        <label>อัตราภาษีมูลค่าเพิ่ม (%)</label>
+        <input id="setVatRate" type="number" min="0" step="0.01" style="max-width:140px;">
+        <div class="hint">ราคาสินค้าในระบบถือเป็นราคา "รวม VAT แล้ว" ระบบจะแยกภาษีออกมาแสดงให้ในใบกำกับภาษี — ตรวจสอบอัตราที่ใช้อยู่ปัจจุบันกับกรมสรรพากรก่อนใช้งานจริง</div>
+      </div>
+      <div class="field">
+        <label>ข้อความท้ายใบเสร็จ (ไม่บังคับ)</label>
+        <input id="setFooter" placeholder="เช่น ขอบคุณที่อุดหนุน / สินค้าซื้อแล้วไม่รับคืน">
+      </div>
+      <div class="hint" id="setCounters" style="margin-bottom:12px;"></div>
+      <button class="btn btn-primary" id="btnSaveSettings" type="button">บันทึกข้อมูลร้าน</button>
     </div>
   </div>
 
@@ -731,6 +801,7 @@ tbody tr:hover{background:var(--paper-dim);}
 let PRODUCTS = [];
 let SALES = [];
 let STOCK_ADJUSTMENTS = [];
+let SHOP = defaultShop();
 let CART = []; // {productId, unitKey, unitLabel, unitQtyBase, price, qty, discount}
 let scanMode = null;
 let matchedExistingProductId = null;
@@ -749,6 +820,16 @@ async function loadData(){
     const a = await window.storage.get('stockAdjustments', false);
     STOCK_ADJUSTMENTS = a ? JSON.parse(a.value) : [];
   }catch(e){ STOCK_ADJUSTMENTS = []; }
+  try{
+    const sh = await window.storage.get('shopSettings', false);
+    if(sh){
+      const parsed = JSON.parse(sh.value);
+      const d = defaultShop();
+      SHOP = Object.assign(d, parsed, { counters: Object.assign(d.counters, parsed.counters||{}) });
+    }
+  }catch(e){ SHOP = defaultShop(); }
+  fillSettingsForm();
+  refreshVatUi();
   PRODUCTS.forEach(p=>{ if(!p.subUnits) p.subUnits=[]; });
   SALES.forEach(s=>{ if(!s.returns) s.returns=[]; if(!s.paymentMethod) s.paymentMethod='cash'; });
   renderProducts();
@@ -1649,6 +1730,30 @@ document.getElementById('btnCheckout').addEventListener('click', async ()=>{
   const method = document.getElementById('paymentMethod').value;
   const pay = method==='cash' ? (parseFloat(document.getElementById('payAmount').value)||0) : totals.grand;
 
+  // ---- customer + document type (Thai tax rules) — validate BEFORE touching stock ----
+  const custNameVal = document.getElementById('custName').value.trim();
+  const wantFull = SHOP.vatRegistered && document.getElementById('custFullInvoice').checked;
+  let customer = null;
+  if(custNameVal){
+    customer = {
+      type: document.getElementById('custType').value,
+      name: custNameVal,
+      taxId: document.getElementById('custTaxId').value.trim(),
+      phone: document.getElementById('custPhone').value.trim(),
+      address: document.getElementById('custAddress').value.trim(),
+      branch: document.getElementById('custBranch').value.trim()
+    };
+  }
+  if(SHOP.vatRegistered && (!SHOP.name || !SHOP.address || !/^\d{13}$/.test(SHOP.taxId))){
+    showToast('กรุณากรอกข้อมูลร้านให้ครบ (ชื่อ ที่อยู่ เลขผู้เสียภาษี 13 หลัก) ในแท็บ "ตั้งค่าร้าน" ก่อนออกใบกำกับภาษี');
+    return;
+  }
+  if(wantFull && (!customer || !customer.address)){
+    showToast('ใบกำกับภาษีเต็มรูปต้องกรอกชื่อและที่อยู่ของผู้ซื้อ');
+    return;
+  }
+  const docType = !SHOP.vatRegistered ? 'receipt' : (wantFull ? 'full' : 'abbr');
+
   const saleItems = totals.lines.map(({item,p,gross,disc,net})=>({
     lineId: uid('li'),
     productId:p.id, barcode:p.barcode, name:p.name,
@@ -1664,19 +1769,23 @@ document.getElementById('btnCheckout').addEventListener('click', async ()=>{
   renderProducts();
   renderPosCatalog();
 
-  // Build customer from whatever is actually filled in the name field —
-  // not gated on the checkbox state, so a filled-in name is never silently dropped.
-  let customer = null;
-  const custNameVal = document.getElementById('custName').value.trim();
-  if(custNameVal){
-    customer = {
-      type: document.getElementById('custType').value,
-      name: custNameVal,
-      taxId: document.getElementById('custTaxId').value.trim(),
-      phone: document.getElementById('custPhone').value.trim(),
-      address: document.getElementById('custAddress').value.trim()
-    };
+  // running document number (separate sequential series per document type)
+  const prefix = { receipt:'RC', abbr:'ABB', full:'TI' }[docType];
+  SHOP.counters[docType] = (SHOP.counters[docType]||0) + 1;
+  const docNo = prefix + '-' + String(SHOP.counters[docType]).padStart(6,'0');
+  await saveSettings();
+  refreshVatUi();
+
+  let vat = null;
+  if(docType!=='receipt'){
+    const rate = Number(SHOP.vatRate)||0;
+    const amount = Math.round(totals.grand*rate/(100+rate)*100)/100;
+    vat = { rate, amount, base: Math.round((totals.grand-amount)*100)/100 };
   }
+  const seller = {
+    name:SHOP.name, address:SHOP.address, taxId:SHOP.taxId, phone:SHOP.phone, footer:SHOP.footer,
+    branchText: SHOP.branchType==='branch' ? ('สาขา '+(SHOP.branchCode||'')) : 'สำนักงานใหญ่'
+  };
 
   const sale = {
     id: uid('S'),
@@ -1686,7 +1795,8 @@ document.getElementById('btnCheckout').addEventListener('click', async ()=>{
     itemDiscount: totals.itemDiscountTotal,
     discount: totals.billDiscount, discountType: totals.discType, discountInput: totals.discVal,
     grandTotal: totals.grand, payment: pay, change: Math.max(0,pay-totals.grand),
-    paymentMethod: method, customer, returns: []
+    paymentMethod: method, customer, returns: [],
+    docType, docNo, vat, seller
   };
   SALES.unshift(sale);
   await saveSales();
@@ -1702,33 +1812,61 @@ document.getElementById('btnCheckout').addEventListener('click', async ()=>{
   document.getElementById('custTaxId').value='';
   document.getElementById('custPhone').value='';
   document.getElementById('custAddress').value='';
+  document.getElementById('custBranch').value='';
+  document.getElementById('custFullInvoice').checked=false;
   document.getElementById('paymentMethod').value='cash';
   renderCart();
   cartCol.classList.remove('open');
-  showReceipt(sale);
+  showReceipt(sale,false);
 });
 
 /* ===================== RECEIPT ===================== */
-function buildReceiptHtml(sale){
-  const dt = new Date(sale.datetime);
-  const dtStr = dt.toLocaleDateString('th-TH',{year:'numeric',month:'2-digit',day:'2-digit'}) + ' ' + dt.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'});
-  let itemsHtml = sale.items.map(it=>`
+function thaiDateTime(iso){
+  const d = new Date(iso);
+  return d.toLocaleDateString('th-TH',{day:'2-digit',month:'2-digit',year:'numeric'}) + ' ' + d.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'});
+}
+const DOC_TITLES = { receipt:'ใบเสร็จรับเงิน', abbr:'ใบกำกับภาษีอย่างย่อ', full:'ใบเสร็จรับเงิน / ใบกำกับภาษี' };
+function buildReceiptHtml(sale, isCopy){
+  const type = sale.docType || 'receipt';
+  const seller = sale.seller || {
+    name:SHOP.name, address:SHOP.address, taxId:SHOP.taxId, phone:SHOP.phone, footer:SHOP.footer,
+    branchText: SHOP.branchType==='branch' ? ('สาขา '+(SHOP.branchCode||'')) : 'สำนักงานใหญ่'
+  };
+  const sellerHtml = seller.name ? `
+    <div class="center" style="font-weight:600;font-size:14px;">${escapeHtml(seller.name)}</div>
+    ${seller.address ? `<div class="center sub">${escapeHtml(seller.address)}</div>` : ''}
+    ${seller.taxId ? `<div class="center sub">เลขประจำตัวผู้เสียภาษี ${escapeHtml(seller.taxId)} (${escapeHtml(seller.branchText||'')})</div>` : ''}
+    ${seller.phone ? `<div class="center sub">โทร ${escapeHtml(seller.phone)}</div>` : ''}
+  ` : '';
+  const copyHtml = type==='full' ? `<div class="center sub">(${isCopy?'สำเนา':'ต้นฉบับ'})</div>` : '';
+
+  const itemsHtml = sale.items.map(it=>`
     <div class="ritem">
       <div class="rline"><span>${escapeHtml(it.name)} (${escapeHtml(it.unit)})</span><span>${money(it.lineTotal)}</span></div>
       <div class="sub">${money(it.price)} x ${it.qty}${it.discount>0 ? ' · ลด '+money(it.discount) : ''}</div>
     </div>
   `).join('');
-  let custHtml = '';
+
+  let buyerHtml = '';
   if(sale.customer){
-    custHtml = `
+    const c = sale.customer;
+    const label = type==='full' ? 'ผู้ซื้อ' : 'ลูกค้า';
+    buyerHtml = `
       <hr>
-      <div class="center sub">ออกใบเสร็จในนาม (${sale.customer.type==='company'?'นิติบุคคล':'บุคคลธรรมดา'})</div>
-      <div class="center">${escapeHtml(sale.customer.name)}</div>
-      ${sale.customer.taxId ? `<div class="center sub">เลขผู้เสียภาษี ${escapeHtml(sale.customer.taxId)}</div>` : ''}
-      ${sale.customer.address ? `<div class="center sub">${escapeHtml(sale.customer.address)}</div>` : ''}
-      ${sale.customer.phone ? `<div class="center sub">โทร ${escapeHtml(sale.customer.phone)}</div>` : ''}
+      <div class="sub">${label} (${c.type==='company'?'นิติบุคคล':'บุคคลธรรมดา'})</div>
+      <div>${escapeHtml(c.name)}</div>
+      ${c.address ? `<div class="sub">${escapeHtml(c.address)}</div>` : ''}
+      ${c.taxId ? `<div class="sub">เลขประจำตัวผู้เสียภาษี ${escapeHtml(c.taxId)}${c.branch ? ' ('+escapeHtml(c.branch)+')' : ''}</div>` : (c.branch ? `<div class="sub">${escapeHtml(c.branch)}</div>` : '')}
+      ${c.phone ? `<div class="sub">โทร ${escapeHtml(c.phone)}</div>` : ''}
     `;
   }
+
+  const vatHtml = sale.vat ? `
+    <div class="rline"><span>มูลค่าสินค้าก่อนภาษี</span><span>${money(sale.vat.base)}</span></div>
+    <div class="rline"><span>ภาษีมูลค่าเพิ่ม ${sale.vat.rate}%</span><span>${money(sale.vat.amount)}</span></div>
+    <div class="center sub">ราคาสินค้ารวมภาษีมูลค่าเพิ่มแล้ว</div>
+  ` : '';
+
   let returnsHtml = '';
   if(sale.returns && sale.returns.length>0){
     const totalRefund = sale.returns.reduce((s,r)=>s+r.totalRefund,0);
@@ -1736,31 +1874,43 @@ function buildReceiptHtml(sale){
       <hr>
       <div class="center sub">มีการคืนสินค้าแล้ว รวม ${money(totalRefund)} บาท</div>
       <div class="rline" style="font-weight:600;"><span>ยอดสุทธิหลังคืนสินค้า</span><span>${money(sale.grandTotal-totalRefund)}</span></div>
+      ${sale.vat ? '<div class="center sub">* การคืนสินค้าที่ออกใบกำกับภาษีแล้ว ต้องออกใบลดหนี้ (ม.86/10)</div>' : ''}
     `;
   }
+
+  const signHtml = type==='full' ? `
+    <div style="display:flex;justify-content:space-between;margin-top:26px;font-size:11px;">
+      <div class="center" style="width:46%;border-top:1px solid #999;padding-top:3px;">ผู้รับเงิน</div>
+      <div class="center" style="width:46%;border-top:1px solid #999;padding-top:3px;">ผู้ซื้อ</div>
+    </div>` : '';
+
   return `
-    <h3>ใบเสร็จรับเงิน</h3>
-    <div class="center sub">เลขที่ ${sale.id}</div>
-    <div class="center sub">${dtStr}</div>
+    ${sellerHtml}
+    <h3 style="margin-top:8px;">${DOC_TITLES[type]}</h3>
+    ${copyHtml}
+    <div class="center sub">เลขที่ ${escapeHtml(sale.docNo || sale.id)}</div>
+    <div class="center sub">วันที่ ${thaiDateTime(sale.datetime)}</div>
+    ${buyerHtml}
     <hr>
     ${itemsHtml}
     <hr>
     <div class="rline"><span>ยอดรวมสินค้า</span><span>${money(sale.subtotal)}</span></div>
     ${sale.itemDiscount>0 ? `<div class="rline"><span>ส่วนลดรายสินค้า</span><span>-${money(sale.itemDiscount)}</span></div>` : ''}
     <div class="rline"><span>ส่วนลดท้ายบิล${sale.discountType==='percent' ? ' ('+sale.discountInput+'%)' : ''}</span><span>-${money(sale.discount)}</span></div>
-    <div class="rline" style="font-weight:600;font-size:14px;"><span>รวมสุทธิ</span><span>${money(sale.grandTotal)}</span></div>
+    <div class="rline" style="font-weight:600;font-size:14px;"><span>รวมทั้งสิ้น</span><span>${money(sale.grandTotal)}</span></div>
+    ${vatHtml}
     <hr>
     <div class="rline"><span>ชำระโดย</span><span>${PAY_LABELS[sale.paymentMethod]||sale.paymentMethod}</span></div>
     <div class="rline"><span>รับเงิน</span><span>${money(sale.payment)}</span></div>
     <div class="rline"><span>เงินทอน</span><span>${money(sale.change)}</span></div>
-    ${custHtml}
     ${returnsHtml}
+    ${signHtml}
     <hr>
-    <div class="center sub">ขอบคุณที่อุดหนุนค่ะ / ครับ</div>
+    <div class="center sub">${escapeHtml(seller.footer || 'ขอบคุณที่อุดหนุน')}</div>
   `;
 }
-function showReceipt(sale){
-  document.getElementById('receiptContent').innerHTML = buildReceiptHtml(sale);
+function showReceipt(sale, isCopy){
+  document.getElementById('receiptContent').innerHTML = buildReceiptHtml(sale, isCopy);
   document.getElementById('receiptOverlay').classList.add('show');
 }
 document.getElementById('closeReceiptModal').addEventListener('click', ()=>document.getElementById('receiptOverlay').classList.remove('show'));
@@ -1781,7 +1931,7 @@ function renderHistory(){
     const div = document.createElement('div');
     div.className='hist-item';
     div.innerHTML = `
-      <div class="row"><span class="id">${sale.id}</span><span class="mono">฿${money(sale.grandTotal)}</span></div>
+      <div class="row"><span class="id">${escapeHtml(sale.docNo||sale.id)}${sale.docType?' · '+DOC_TITLES[sale.docType]:''}</span><span class="mono">฿${money(sale.grandTotal)}</span></div>
       <div class="meta">${dtStr} · ${sale.items.length} รายการ · ${PAY_LABELS[sale.paymentMethod]||''}${sale.customer ? ' · ในนาม '+escapeHtml(sale.customer.name) : ''}</div>
       ${totalRefund>0 ? `<div class="refund-note">คืนสินค้าแล้ว ${money(totalRefund)} บาท · ยอดสุทธิ ${money(sale.grandTotal-totalRefund)} บาท</div>` : ''}
       <div class="row-actions">
@@ -1793,7 +1943,7 @@ function renderHistory(){
     listEl.appendChild(div);
   });
   listEl.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click', ()=>{
-    const sale = SALES.find(s=>s.id===b.dataset.view); if(sale) showReceipt(sale);
+    const sale = SALES.find(s=>s.id===b.dataset.view); if(sale) showReceipt(sale,true);
   }));
   listEl.querySelectorAll('[data-return]').forEach(b=>b.addEventListener('click', ()=>openReturnModal(b.dataset.return)));
   listEl.querySelectorAll('[data-delsale]').forEach(b=>b.addEventListener('click', ()=>deleteSale(b.dataset.delsale)));
@@ -1918,7 +2068,7 @@ function scanErrorMessage(e){
   if(/secure|https/i.test(name)) return 'หน้านี้ต้องเปิดผ่าน https:// เท่านั้นจึงจะใช้กล้องได้';
   return 'เปิดกล้องไม่สำเร็จ (' + name.trim() + ') — ใช้ปุ่ม "ถ่ายรูปบาร์โค้ดแทน" หรือพิมพ์รหัสด้านล่างแทนได้';
 }
-async function openScanner(mode){
+async function openScannerLegacy(mode){
   scanMode = mode;
   const overlay = document.getElementById('scanOverlay');
   const note = document.getElementById('scanNote');
@@ -1964,6 +2114,33 @@ document.getElementById('scanPhotoInput').addEventListener('change', async e=>{
   const file = e.target.files[0];
   if(!file) return;
   const note = document.getElementById('scanNote');
+  if(zxInit()){
+    note.textContent='กำลังอ่านบาร์โค้ดจากรูป...';
+    try{
+      stopScannerEngines();
+      const img=new Image();
+      img.src=URL.createObjectURL(file);
+      await img.decode();
+      const angles=[0,-25,25,-12,12,-40,40,-60,60,90,-90];
+      let found=null;
+      for(const maxDim of [2000,1200]){
+        for(const ang of angles){
+          const c=zxDrawRotated(img, img.naturalWidth, img.naturalHeight, ang, maxDim);
+          found=zxDecodeCanvas(c);
+          if(found) break;
+          await new Promise(r=>setTimeout(r,0));
+        }
+        if(found) break;
+      }
+      URL.revokeObjectURL(img.src);
+      if(found){ onBarcodeDetected(found); }
+      else { note.textContent='อ่านบาร์โค้ดจากรูปไม่ได้ — ลองถ่ายใหม่ให้เห็นแถบบาร์โค้ดชัด ไม่เบลอ และไม่มีแสงสะท้อน หรือพิมพ์ตัวเลขใต้บาร์โค้ดด้านล่างแทน'; }
+    }catch(err){
+      note.textContent='อ่านรูปไม่สำเร็จ — ลองถ่ายใหม่ หรือพิมพ์รหัสด้านล่างแทน';
+    }
+    e.target.value='';
+    return;
+  }
   if(typeof Html5Qrcode==='undefined'){ note.textContent='ตัวอ่านบาร์โค้ดยังไม่โหลด — รีเฟรชหน้าแล้วลองใหม่'; return; }
   note.textContent='กำลังอ่านบาร์โค้ดจากรูป...';
   try{
@@ -1979,10 +2156,97 @@ document.getElementById('scanPhotoInput').addEventListener('change', async e=>{
   }
   e.target.value='';
 });
-function stopScanner(){
+/* ---- Engine 2 (preferred): own camera loop + ZXing, full-resolution frames, tries several tilt angles ---- */
+let zxStream=null, zxTimer=null, zxVideo=null, zxCanvas=null, zxRunning=false, zxAngleIdx=0, zxReader=null, zxHints=null;
+const ZX_ANGLES=[0,-25,25,-12,12,-40,40,90,-90];
+function zxInit(){
+  if(typeof ZXing==='undefined') return false;
+  if(zxReader) return true;
+  try{
+    const BF=ZXing.BarcodeFormat;
+    zxHints=new Map();
+    zxHints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,[BF.EAN_13,BF.EAN_8,BF.UPC_A,BF.UPC_E,BF.CODE_128,BF.CODE_39,BF.ITF,BF.QR_CODE]);
+    zxHints.set(ZXing.DecodeHintType.TRY_HARDER,true);
+    zxReader=new ZXing.MultiFormatReader();
+    zxReader.setHints(zxHints);
+    return true;
+  }catch(e){ zxReader=null; return false; }
+}
+function zxDecodeCanvas(c){
+  try{
+    const src=new ZXing.HTMLCanvasElementLuminanceSource(c);
+    const bmp=new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(src));
+    return zxReader.decode(bmp, zxHints).getText();
+  }catch(e){ return null; }
+}
+function zxDrawRotated(source, sw, sh, angle, maxDim){
+  const scale=Math.min(1, maxDim/Math.max(sw,sh));
+  const w=Math.round(sw*scale), h=Math.round(sh*scale);
+  if(!zxCanvas) zxCanvas=document.createElement('canvas');
+  const quarter=Math.abs(angle)===90;
+  zxCanvas.width=quarter?h:w; zxCanvas.height=quarter?w:h;
+  const ctx=zxCanvas.getContext('2d',{willReadFrequently:true});
+  ctx.fillStyle='#fff'; ctx.fillRect(0,0,zxCanvas.width,zxCanvas.height);
+  ctx.save();
+  ctx.translate(zxCanvas.width/2, zxCanvas.height/2);
+  ctx.rotate(angle*Math.PI/180);
+  ctx.drawImage(source,-w/2,-h/2,w,h);
+  ctx.restore();
+  return zxCanvas;
+}
+function zxLoop(){
+  if(!zxRunning) return;
+  if(zxVideo && zxVideo.readyState>=2 && zxVideo.videoWidth){
+    const angle=ZX_ANGLES[zxAngleIdx++ % ZX_ANGLES.length];
+    const c=zxDrawRotated(zxVideo, zxVideo.videoWidth, zxVideo.videoHeight, angle, 1280);
+    const text=zxDecodeCanvas(c);
+    if(text){ onBarcodeDetected(text); return; }
+  }
+  zxTimer=setTimeout(zxLoop, 40);
+}
+async function openScanner(mode){
+  if(!zxInit()) return openScannerLegacy(mode);
+  scanMode = mode;
+  const note = document.getElementById('scanNote');
+  document.getElementById('scanOverlay').classList.add('show');
+  note.textContent = 'กำลังเปิดกล้อง...';
+  const manualInput = document.getElementById('manualScanInput');
+  manualInput.value='';
+  if(window.matchMedia && window.matchMedia('(pointer:fine)').matches){ setTimeout(()=>manualInput.focus(), 150); }
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    note.textContent = 'เบราว์เซอร์นี้ไม่อนุญาตให้ใช้กล้อง (ต้องเปิดผ่าน https:// ใน Safari/Chrome โดยตรง) — ใช้ปุ่ม "ถ่ายรูปบาร์โค้ดแทน" หรือพิมพ์รหัสด้านล่างแทนได้';
+    return;
+  }
+  try{
+    stopScannerEngines();
+    const region=document.getElementById('qrReaderRegion');
+    region.innerHTML='';
+    zxVideo=document.createElement('video');
+    zxVideo.setAttribute('playsinline',''); zxVideo.setAttribute('muted',''); zxVideo.muted=true; zxVideo.autoplay=true;
+    zxVideo.style.cssText='width:100%;display:block;max-height:60vh;object-fit:cover;';
+    region.appendChild(zxVideo);
+    zxStream=await navigator.mediaDevices.getUserMedia({ video:{ facingMode:{ideal:'environment'}, width:{ideal:1920}, height:{ideal:1080} }, audio:false });
+    zxVideo.srcObject=zxStream;
+    await zxVideo.play();
+    try{ await zxStream.getVideoTracks()[0].applyConstraints({ advanced:[{ focusMode:'continuous' }] }); }catch(_){}
+    zxRunning=true; zxAngleIdx=0;
+    note.textContent = 'เล็งบาร์โค้ดให้อยู่กลางภาพและกว้างพอสมควร ถือนิ่งๆ สักครู่ (ระบบลองหลายมุมเอียงให้อัตโนมัติ)';
+    zxLoop();
+  }catch(e){
+    zxRunning=false;
+    note.textContent = scanErrorMessage(e);
+  }
+}
+function stopScannerEngines(){
+  zxRunning=false; clearTimeout(zxTimer);
+  if(zxStream){ zxStream.getTracks().forEach(t=>t.stop()); zxStream=null; }
+  if(zxVideo){ try{ zxVideo.srcObject=null; zxVideo.remove(); }catch(_){} zxVideo=null; }
   if(html5QrScanner && scannerRunning){
     html5QrScanner.stop().then(()=>{ html5QrScanner.clear(); scannerRunning=false; }).catch(()=>{ scannerRunning=false; });
   }
+}
+function stopScanner(){
+  stopScannerEngines();
   document.getElementById('scanOverlay').classList.remove('show');
 }
 function onBarcodeDetected(code){
@@ -2032,6 +2296,70 @@ document.getElementById('posSearch').addEventListener('keydown', e=>{
     renderPosCatalog();
     showToast(`เพิ่ม "${found.name}" ลงตะกร้าแล้ว`);
   }
+});
+
+/* ===================== SHOP SETTINGS ===================== */
+function defaultShop(){
+  return { name:'', address:'', taxId:'', branchType:'head', branchCode:'', phone:'',
+           vatRegistered:false, vatRate:7, footer:'', counters:{ receipt:0, abbr:0, full:0 } };
+}
+function thaiIdChecksumOk(id){
+  if(!/^\d{13}$/.test(id)) return false;
+  let sum=0; for(let i=0;i<12;i++) sum += Number(id[i])*(13-i);
+  return ((11 - (sum % 11)) % 10) === Number(id[12]);
+}
+async function saveSettings(){
+  try{ await window.storage.set('shopSettings', JSON.stringify(SHOP), false); }
+  catch(e){ showToast('บันทึกข้อมูลร้านไม่สำเร็จ'); }
+}
+function fillSettingsForm(){
+  document.getElementById('setName').value = SHOP.name||'';
+  document.getElementById('setAddress').value = SHOP.address||'';
+  document.getElementById('setTaxId').value = SHOP.taxId||'';
+  document.getElementById('setPhone').value = SHOP.phone||'';
+  document.getElementById('setBranchType').value = SHOP.branchType||'head';
+  document.getElementById('setBranchCode').value = SHOP.branchCode||'';
+  document.getElementById('setVat').checked = !!SHOP.vatRegistered;
+  document.getElementById('setVatRate').value = SHOP.vatRate;
+  document.getElementById('setFooter').value = SHOP.footer||'';
+  document.getElementById('branchCodeWrap').style.display = SHOP.branchType==='branch' ? 'block':'none';
+  document.getElementById('vatRateWrap').style.display = SHOP.vatRegistered ? 'block':'none';
+}
+function refreshVatUi(){
+  document.getElementById('custFullWrap').style.display = SHOP.vatRegistered ? 'block':'none';
+  const c = SHOP.counters;
+  document.getElementById('setCounters').textContent =
+    `เลขที่เอกสารที่ออกไปแล้ว — ใบเสร็จรับเงิน: ${c.receipt} · ใบกำกับภาษีอย่างย่อ: ${c.abbr} · ใบกำกับภาษีเต็มรูป: ${c.full} (เลขรันต่อเนื่องอัตโนมัติ แยกตามประเภทเอกสาร)`;
+}
+document.getElementById('setBranchType').addEventListener('change', e=>{
+  document.getElementById('branchCodeWrap').style.display = e.target.value==='branch' ? 'block':'none';
+});
+document.getElementById('setVat').addEventListener('change', e=>{
+  document.getElementById('vatRateWrap').style.display = e.target.checked ? 'block':'none';
+});
+document.getElementById('btnSaveSettings').addEventListener('click', async ()=>{
+  const name = document.getElementById('setName').value.trim();
+  const address = document.getElementById('setAddress').value.trim();
+  const taxId = document.getElementById('setTaxId').value.trim();
+  const vatReg = document.getElementById('setVat').checked;
+  const branchType = document.getElementById('setBranchType').value;
+  const branchCode = document.getElementById('setBranchCode').value.trim();
+  const vatRate = parseFloat(document.getElementById('setVatRate').value);
+  if(taxId && !/^\d{13}$/.test(taxId)){ showToast('เลขประจำตัวผู้เสียภาษีต้องเป็นตัวเลข 13 หลัก'); return; }
+  if(vatReg){
+    if(!name || !address || !taxId){ showToast('ร้านที่จดทะเบียน VAT ต้องกรอกชื่อ ที่อยู่ และเลขผู้เสียภาษี'); return; }
+    if(isNaN(vatRate) || vatRate<0){ showToast('กรุณาระบุอัตรา VAT ให้ถูกต้อง'); return; }
+  }
+  if(branchType==='branch' && !/^\d{5}$/.test(branchCode)){ showToast('รหัสสาขาต้องเป็นตัวเลข 5 หลัก เช่น 00001'); return; }
+  SHOP.name = name; SHOP.address = address; SHOP.taxId = taxId;
+  SHOP.phone = document.getElementById('setPhone').value.trim();
+  SHOP.branchType = branchType; SHOP.branchCode = branchCode;
+  SHOP.vatRegistered = vatReg; SHOP.vatRate = isNaN(vatRate) ? 7 : vatRate;
+  SHOP.footer = document.getElementById('setFooter').value.trim();
+  await saveSettings();
+  refreshVatUi();
+  const warn = (taxId && !thaiIdChecksumOk(taxId)) ? ' (หมายเหตุ: เลขผู้เสียภาษีนี้ไม่ผ่านการตรวจเลขตรวจสอบ กรุณาตรวจอีกครั้ง)' : '';
+  showToast('บันทึกข้อมูลร้านแล้ว' + warn);
 });
 
 /* ===================== INIT ===================== */
