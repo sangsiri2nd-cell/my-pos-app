@@ -1946,12 +1946,14 @@ async function openScanner(mode){
     html5QrScanner = new Html5Qrcode('qrReaderRegion', cfg);
     await html5QrScanner.start(
       { facingMode: 'environment' },
-      { fps: 15, qrbox: (w,h)=>({ width: Math.floor(w*0.85), height: Math.floor(Math.min(h*0.5, w*0.4)) }) },
+      { fps: 15,
+        qrbox: (w,h)=>({ width: Math.floor(w*0.95), height: Math.floor(h*0.7) }),
+        videoConstraints: { facingMode:'environment', width:{ideal:1920}, height:{ideal:1080} } },
       (decodedText)=>{ onBarcodeDetected(decodedText); },
       ()=>{ /* per-frame no-match, ignore */ }
     );
     scannerRunning = true;
-    note.textContent = 'เล็งบาร์โค้ดให้อยู่ในกรอบ ถือห่างประมาณ 10-20 ซม. ให้แสงพอ และอย่าให้สั่น';
+    note.textContent = 'หมุนมือถือให้แถบบาร์โค้ดวางแนวนอน (ไม่เอียง) ให้บาร์โค้ดกว้างเกือบเต็มกรอบ ถือนิ่งๆ สักครู่ และเลี่ยงแสงสะท้อนบนพื้นผิวมัน';
   }catch(e){
     scannerRunning = false;
     note.textContent = scanErrorMessage(e);
